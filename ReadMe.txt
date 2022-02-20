@@ -1,0 +1,6 @@
+This is a discord bot to be used for me and my friends, anyone can use this code but the primary use I have for sharing is so friends can make their own discord bots based on mine...
+
+using the resourceTemplate to import your keys and other information for use in the Discord and Alpha Vantage APIS, used for the discord bot and live stock data resppectively...
+
+!IMPORTANT!
+in BOTH DiscordBot.py and stocks.py line one is commented out... feel free to EITHER rename resourceTemplate.py resources OR uncomment line one and comment line 2 once you have added your Discord and Alpha Vantage keys to the appropriate spots in resourceTemplate.py
