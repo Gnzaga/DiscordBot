@@ -13,7 +13,7 @@ message70 = "oops! you didn't fail but you need to do a bit better next time"
 
 message80 = "almost there, but you're doing alright!"
 
-message90 = "Nice!""
+message90 = "Nice!"
 
 message100 = "Great Job! You got an A!"
 # random messages for the test program
