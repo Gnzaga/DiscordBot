@@ -1,4 +1,6 @@
-# Work with Python 3.6
+#import resourcesTemplate as resources
+import resources
+#see resourceTemplate.py for explanation on how to use.
 import discord
 #For discord bot -> pip install Discord
 import os
@@ -13,14 +15,13 @@ from random import randint
 
 from discord.ext import commands
 from discord.utils import get
-from discord import FFmpegPCMAudio
 #other discord stuff
 
 from os import system
 #more os stuff
 
 import time
-import nacl -> pip install pynacl
+import nacl #-> pip install pynacl
 
 #more other stuff
 import asyncio
@@ -28,33 +29,29 @@ import asyncio
 #asyncio for async functions! -> pip install asyncio
 
 
-#import resourcesTemplate
-import resources
-#see resourceTemplate.py for explanation on how to use.
+
 
 TOKEN = resources.TOKEN
 bot = commands.Bot(command_prefix='!')
 client = discord.Client()
-songs = asyncio.Queue()
-play_next_song=asyncio.Event()
 
+wordles={}
 
-hiNum = 100
-loNum = 0
-guessNum = (hiNum - loNum) / 2
-guessGameInProgress = False
-guessCount = 0
+def setOfWordles():
+    fn=open("wordles.txt")
+    lines = fn.readlines()
+    for line in lines:
+        wordles[line.strip()] = True
 
+setOfWordles()
 
-
-
-@bot.command(name='MCServerAddress', brief="Gives Minecraft Server Address", description="Gives you address of our most current active MC server")
-async def MCServerAddress(ctx):
-    await ctx.send("gnzaga.aternos.me")
-@bot.command(name='quote',brief="Gives Physics Quote", description='gives a cool physics quote')
-async def quote(ctx):
-    a = WebScraperQuotes.getRandQuote()
-    await ctx.send(a)
+#@bot.command(name='MCServerAddress', brief="Gives Minecraft Server Address", description="Gives you address of our most current active MC server")
+#async def MCServerAddress(ctx):
+#    await ctx.send("gnzaga.aternos.me")
+#@bot.command(name='quote',brief="Gives Physics Quote", description='gives a cool physics quote')
+#async def quote(ctx):
+#    a = WebScraperQuotes.getRandQuote()
+#    await ctx.send(a)
 
 
 @bot.command(name='add', brief="Adds Two Numbers", description='adds TWO numbers')
@@ -114,8 +111,148 @@ async def cat(ctx):
 async def bye(message):
     await message.send("yup see ya")
 
+@bot.command(name="iswordle", description="Checks if word is a wordleable word!")
+async def iswordle(message, word : str):
+    if word in wordles:
+        await message.send(word + " is a playable word!")
+    else:
+        await message.send(word + " is NOT a playable word!")
 
 
+@bot.command(name="wordle", description="Play Wordle!")
+async def wordle(ctx):
+    greenSquare = ":green_square:"
+    yellowSquare = ":yellow_square:"
+    blackSquare = ":white_square_button:"
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    #This function generates the row for A users valid input
+    #takes in guess and answer, assumes guess is valid length and word
+
+    def result(guess, answer):
+        nonlocal alphabet
+        #@alphabet = alphabet
+        out = "";
+        isGreen=[False,False,False,False, False]
+        isYellow=[False,False,False,False, False]
+        for i in range(len(guess)):
+           if guess[i] == answer[i]:
+            isGreen[i] = True
+            
+        for i in range(len(guess)):
+            for j in range(len(guess)):
+                if guess[i] == answer[j]:
+                    if isGreen[j] == False:
+                        isYellow[i] = True
+                        
+
+        for i in range(len(guess)):
+            if isGreen[i]:
+                out = out + greenSquare
+            elif isYellow[i]:
+                out = out + yellowSquare
+            elif isYellow[i] == False and isGreen[i] == False:
+                index = ord(guess[i]) - 97
+                if index ==len(alphabet)-1:
+                    alphabet = alphabet[:index] + "-"
+                else:
+                    alphabet = alphabet[:index] + "-" + alphabet[index+1:]
+                
+                
+                out = out + blackSquare
+        return out
+    #fix later to use hash table instead of search
+    def getWord():
+        f = open('wordles.txt', 'r')
+        lines = f.readlines()
+        bound = randint(0,len(lines))
+        for i in range(len(lines)):
+            if i == bound:
+                return lines[i].strip()
+
+
+    #word = res.getWordleWord();
+    word = getWord()
+    #word = "drops"
+    print(word)
+    board = []
+    won = False
+    exitGame = False
+    tries = 6
+    out = ""
+
+    def getName(name):
+        index = 0
+        for i in range(len(name)):
+            if name[i] == "#":
+                return name[:i]
+        return name
+
+    def check(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+    
+    player = getName(str(ctx.author))
+
+    for i in range(0,tries):
+        if(i < tries-1):
+            await ctx.send( player + ', guess a 5 letter word, you have ' + str(tries-i) + " tries left!");
+        else:
+            await ctx.send(player + ", guess a 5 letter word, you have 1 try left!");
+        response = await bot.wait_for('message', check=check);
+        response_text = response.content
+        
+        if(response_text == "quit"):
+            break
+        print(len(response_text))
+        
+        while(len(response_text) != 5):
+            if(len(response_text) > 5):
+                await ctx.send(player + ", the word is GREATER than 5 letters, try again!")
+
+            else:
+                await ctx.send(player + ", the word is LESS than 5 letters, try again!")
+            response = await bot.wait_for('message', check=check)
+            response_text = response.content
+             
+            if(response_text == "quit"):
+                exitGame = True
+                break
+        while((response_text in wordles) == False):
+            if(response_text == "quit"):
+                exitGame = True
+                break
+            await ctx.send(player + ", " + response_text + " is an invalid word, try again!")
+            response = await bot.wait_for('message', check=check)
+            response_text = response.content
+        if(exitGame):
+            break
+        row = result(response_text, word.lower())    
+        board.append(row)
+        
+        if(response_text == word):
+            won = True
+            for m in board:
+                #await ctx.send(m)
+                out = out + m + "\n"
+            if(i == 1):
+                #await ctx.send("You took 1 try to guess " + word)
+                out = out + player + " took 1 try to guess " + word + "\n"
+            else:    
+                #wait ctx.send("You took " + str(i+1) + " tries to guess " + word)
+                out = out + player + " took " + str(i+1) + " tries to guess " + "**" + word + "**" + "\n"
+            await ctx.send(out)
+            break
+        elif i != tries-1:
+            await ctx.send("[" + player + "]\n" + "**Usable Letters**: " + alphabet + "\n**Guess**: " + response_text )
+            await ctx.send(row)
+
+    
+    if won == False:
+        for i in range(len(board)):
+            out = out + board[i] + "\n"
+            #await ctx.send(board[i])
+        out = out + player + "'s word was " + "**" + word + "**"
+        #await ctx.send("The word was " + word)
+        await ctx.send(out)
 #Experimental / no use at the moment below
 """
 @bot.command(pass_context=True, brief="Makes the bot join your channel", aliases=['j', 'jo'])
@@ -157,6 +294,20 @@ async def on_message(message):
 
 
 
+@bot.command(name='guess', brief = "Guesses number between 1 and 100")
+async def guess(ctx, *argv):
+    global guessGameInProgress
+    global hiNum
+    global loNum
+    global guessNum
+    global guessCount
+    if guessGameInProgress ==  False:
+        await ctx.send("Think of a number, Rom will try to guess it!")
+        await ctx.send("If it's correct, send '!guess right'")
+        await ctx.send("If it's incorrect, send '!guess wrong'")
+    guessGameInProgress = True
+
+
 @client.event
 async def on_ready():
     print(f'{client.user.name} has connected to Discord!')
@@ -170,20 +321,6 @@ async def on_member_join(member):
                  f'{member.name}, make sure you are NOT being part of the problem',
                  f'{member.name} stop being such a boring person, get off your phone and get a life']
     await member.send(greetings[randint(0, len(greetings))])
-
-
-@bot.command(name='guess', brief = "Guesses number between 1 and 100")
-async def guess(ctx, *argv):
-    global guessGameInProgress
-    global hiNum
-    global loNum
-    global guessNum
-    global guessCount
-    if guessGameInProgress ==  False:
-        await ctx.send("Think of a number, Rom will try to guess it!")
-        await ctx.send("If it's correct, send '!guess right'")
-        await ctx.send("If it's incorrect, send '!guess wrong'")
-    guessGameInProgress = True
 
 
 
