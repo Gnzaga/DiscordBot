@@ -45,13 +45,13 @@ def setOfWordles():
 
 setOfWordles()
 
-#@bot.command(name='MCServerAddress', brief="Gives Minecraft Server Address", description="Gives you address of our most current active MC server")
-#async def MCServerAddress(ctx):
-#    await ctx.send("gnzaga.aternos.me")
-#@bot.command(name='quote',brief="Gives Physics Quote", description='gives a cool physics quote')
-#async def quote(ctx):
-#    a = WebScraperQuotes.getRandQuote()
-#    await ctx.send(a)
+
+@bot.command(name='quote', brief="Gives Physics Quote")
+async def quote(ctx):
+    await ctx.trigger_typing()
+    a = WebScraperQuotes.getRandQuote()
+    await ctx.send(a)
+
 
 
 @bot.command(name='add', brief="Adds Two Numbers", description='adds TWO numbers')
@@ -66,10 +66,12 @@ async def multiply(ctx, a: int, b: int):
 
 @bot.command(name='crypto', brief="Returns Price of Cryptocurrency", description='returns latest price of given cryptocurrency')
 async def crypto(ctx, symbol: str):
+    await ctx.trigger_typing()
     await ctx.send(stocks.getCrypto(symbol))
 
 @bot.command(name='stock', brief="Returns Price of Stock", description='returns latest price of given stock')
 async def stock(ctx, a: str):
+    await ctx.trigger_typing()
     await ctx.send(stocks.getLatestPrice(a))
 
 @bot.command(name='testScore', brief="Returns your test score", description='returns your test score')
@@ -186,7 +188,7 @@ async def wordle(ctx):
             if name[i] == "#":
                 return name[:i]
         return name
-
+# local check function makes sure author and channel are the same
     def check(msg):
         return msg.author == ctx.author and msg.channel == ctx.channel
     
