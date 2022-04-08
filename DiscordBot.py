@@ -154,7 +154,7 @@ async def wordle(ctx):
                 out = out + yellowSquare
             elif isYellow[i] == False and isGreen[i] == False:
                 index = ord(guess[i]) - 97
-                if index ==len(alphabet)-1:
+                if index == len(alphabet)-1:
                     alphabet = alphabet[:index] + "-"
                 else:
                     alphabet = alphabet[:index] + "-" + alphabet[index+1:]
@@ -164,12 +164,13 @@ async def wordle(ctx):
         return out
     #fix later to use hash table instead of search
     def getWord():
-        f = open('wordles.txt', 'r')
-        lines = f.readlines()
-        bound = randint(0,len(lines))
-        for i in range(len(lines)):
-            if i == bound:
-                return lines[i].strip()
+        return list(wordles)[randint(0,len(list(wordles)))]
+        #f = open('wordles.txt', 'r')
+        #lines = f.readlines()
+        #bound = randint(0,len(lines))
+        #for i in range(len(lines)):
+        #    if i == bound:
+        #        return lines[i].strip()
 
 
     #word = res.getWordleWord();
@@ -193,7 +194,7 @@ async def wordle(ctx):
         return msg.author == ctx.author and msg.channel == ctx.channel
     
     player = getName(str(ctx.author))
-
+    print("New Game: " + player + " -> " + word)
     for i in range(0,tries):
         if(i < tries-1):
             await ctx.send( player + ', guess a 5 letter word, you have ' + str(tries-i) + " tries left!");
@@ -204,12 +205,13 @@ async def wordle(ctx):
         
         if(response_text == "quit"):
             break
-        print(len(response_text))
+        
         
         while(len(response_text) != 5):
+            print("X " + player + " -> " + response_text + " -> " + str(len(response_text)) ) 
+
             if(len(response_text) > 5):
                 await ctx.send(player + ", the word is GREATER than 5 letters, try again!")
-
             else:
                 await ctx.send(player + ", the word is LESS than 5 letters, try again!")
             response = await bot.wait_for('message', check=check)
@@ -219,6 +221,8 @@ async def wordle(ctx):
                 exitGame = True
                 break
         while((response_text in wordles) == False):
+            print("X " + player + " -> " + response_text + " -> " + str(len(response_text)) ) 
+
             if(response_text == "quit"):
                 exitGame = True
                 break
@@ -246,6 +250,7 @@ async def wordle(ctx):
         elif i != tries-1:
             await ctx.send("[" + player + "]\n" + "**Usable Letters**: " + alphabet + "\n**Guess**: " + response_text )
             await ctx.send(row)
+            print(str(i+1) + " " + player + " -> " + response_text)
 
     
     if won == False:
