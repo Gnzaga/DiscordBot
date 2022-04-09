@@ -7,11 +7,10 @@ import os
 # to read files
 import stocks
 #uses alpha vantage api for live stock data
-import WebScraperQuotes
-#improts web scraper program
 from random import randint
 #random for random functionality
-
+import requests
+from bs4 import BeautifulSoup
 
 from discord.ext import commands
 from discord.utils import get
@@ -25,7 +24,7 @@ import nacl #-> pip install pynacl
 
 #more other stuff
 import asyncio
-
+import re
 #asyncio for async functions! -> pip install asyncio
 
 
@@ -37,6 +36,7 @@ client = discord.Client()
 
 wordles={}
 
+forbiddenAsciiNums = [35,36,37,28,29,43,60,61,62,64,91,93,94,123,124,125,126]
 def setOfWordles():
     fn=open("wordles.txt")
     lines = fn.readlines()
@@ -48,10 +48,33 @@ setOfWordles()
 
 @bot.command(name='quote', brief="Gives Physics Quote")
 async def quote(ctx):
+    def isNormal(s):
+        forbiddenAsciiNums = [35,36,37,28,29,43,60,61,62,64,91,93,94,123,124,125,126]
+        for a in s:
+            temp = ord(a)
+            try:
+                forbiddenAsciiNums.index(temp)
+                return False
+            except Exception:
+                continue
+        return True
+     
     await ctx.trigger_typing()
-    a = WebScraperQuotes.getRandQuote()
-    await ctx.send(a)
+    URL= "https://www.goodreads.com/quotes/tag/physics"
+    num = randint(1,25)
+    if num > 1:    
+        URL = URL + "?page=" + str(num)
+     
+    quotes = []
 
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.content, 'html.parser')
+    res = soup.find_all(class_='quoteText')
+    
+    for a in res:
+        if isNormal(a.text):
+            quotes.append(a.text)
+    await ctx.send(quotes[randint(0,len(quotes))])
 
 
 @bot.command(name='add', brief="Adds Two Numbers", description='adds TWO numbers')
@@ -113,6 +136,41 @@ async def cat(ctx):
 async def bye(message):
     await message.send("yup see ya")
 
+@bot.command(name="define", definition="Define the word")
+async def define(ctx, word : str):
+    await ctx.trigger_typing()
+    URL = "https://merriam-webster.com/dictionary/"
+    URL = URL + word
+    regex = re.compile('.*sense .*')
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.content, 'html.parser')
+    res = soup.find_all("div", {"class" : regex})
+
+    out = word
+    count = 1
+
+    def isNormal(s):
+        for a in s:
+            temp = ord(a)
+            try:
+                forbiddenAsciiNums.index(temp)
+            except Exception:
+                continue
+        return True
+    for a in res:
+        if isNormal(a.text) and len(a.text) > 5:
+            for b in a.text.split("\n"):
+                if len(b) > 5 and b[0] == ':' and count <= 5:
+                    out = out + "\n" + str(count) + b
+                    count = count + 1
+    if out == word:
+        await ctx.send("Sorry, but **" + word + "** couldn't be found in the dictionary.")
+       
+    else:
+        await ctx.send(out)
+    
+
+
 @bot.command(name="iswordle", description="Checks if word is a wordleable word!")
 async def iswordle(message, word : str):
     if word in wordles:
@@ -126,10 +184,17 @@ async def wordle(ctx):
     greenSquare = ":green_square:"
     yellowSquare = ":yellow_square:"
     blackSquare = ":white_square_button:"
-    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    alphabet = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
+            "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y",
+            "Z"]
     #This function generates the row for A users valid input
     #takes in guess and answer, assumes guess is valid length and word
-
+    def toString(arr):
+        out = ""
+        for substr in arr:
+            out = out + substr
+        return out
     def result(guess, answer):
         nonlocal alphabet
         #@alphabet = alphabet
@@ -154,11 +219,8 @@ async def wordle(ctx):
                 out = out + yellowSquare
             elif isYellow[i] == False and isGreen[i] == False:
                 index = ord(guess[i]) - 97
-                if index == len(alphabet)-1:
-                    alphabet = alphabet[:index] + "-"
-                else:
-                    alphabet = alphabet[:index] + "-" + alphabet[index+1:]
-                
+                if len(alphabet[index]) == 1:
+                    alphabet[index] = "~~" + alphabet[index] + "~~"
                 
                 out = out + blackSquare
         return out
@@ -248,7 +310,7 @@ async def wordle(ctx):
             await ctx.send(out)
             break
         elif i != tries-1:
-            await ctx.send("[" + player + "]\n" + "**Usable Letters**: " + alphabet + "\n**Guess**: " + response_text )
+            await ctx.send("[" + player + "]\n" + "**Usable Letters**: " + toString(alphabet) + "\n**Guess**: " + response_text )
             await ctx.send(row)
             print(str(i+1) + " " + player + " -> " + response_text)
 
