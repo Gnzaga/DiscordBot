@@ -263,7 +263,7 @@ async def wordle(ctx):
         else:
             await ctx.send(player + ", guess a 5 letter word, you have 1 try left!");
         response = await bot.wait_for('message', check=check);
-        response_text = response.content
+        response_text = response.content.lower()
         
         if(response_text == "quit"):
             break
@@ -277,7 +277,7 @@ async def wordle(ctx):
             else:
                 await ctx.send(player + ", the word is LESS than 5 letters, try again!")
             response = await bot.wait_for('message', check=check)
-            response_text = response.content
+            response_text = response.content.lower()
              
             if(response_text == "quit"):
                 exitGame = True
@@ -290,7 +290,7 @@ async def wordle(ctx):
                 break
             await ctx.send(player + ", " + response_text + " is an invalid word, try again!")
             response = await bot.wait_for('message', check=check)
-            response_text = response.content
+            response_text = response.content.lower()
         if(exitGame):
             break
         row = result(response_text, word.lower())    
