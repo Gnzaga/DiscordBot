@@ -244,7 +244,11 @@ async def wordle(ctx):
     exitGame = False
     tries = 6
     out = ""
-
+    def contains(string, char):
+        for a in string:
+            if char == a:
+                return True
+        return False
     def getName(name):
         index = 0
         for i in range(len(name)):
@@ -272,9 +276,9 @@ async def wordle(ctx):
         while(len(response_text) != 5):
             print("X " + player + " -> " + response_text + " -> " + str(len(response_text)) ) 
 
-            if(len(response_text) > 5):
+            if(len(response_text) > 5 and len(response_text) < 10) and contains(response_text, ' ') == False:
                 await ctx.send(player + ", the word is GREATER than 5 letters, try again!")
-            else:
+            elif len(response_text) < 5:
                 await ctx.send(player + ", the word is LESS than 5 letters, try again!")
             response = await bot.wait_for('message', check=check)
             response_text = response.content.lower()
