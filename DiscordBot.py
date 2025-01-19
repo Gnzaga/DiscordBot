@@ -1,400 +1,389 @@
-#import resourcesTemplate as resources
-import resources
-#see resourceTemplate.py for explanation on how to use.
 import discord
-#For discord bot -> pip install Discord
-import os
-# to read files
-import stocks
-#uses alpha vantage api for live stock data
-from random import randint
-#random for random functionality
+from discord.ext import commands
 import requests
 from bs4 import BeautifulSoup
-
-from discord.ext import commands
-from discord.utils import get
-#other discord stuff
-
-from os import system
-#more os stuff
-
-import time
-import nacl #-> pip install pynacl
-
-#more other stuff
-import asyncio
+from random import randint
+import random
 import re
-#asyncio for async functions! -> pip install asyncio
-
-
+import json
+from conversation_manager import load_conversations, save_conversations, update_conversation, get_conversation
+import resources
+import stocks
+from collections import defaultdict  
+import io
+import base64
 
 
 TOKEN = resources.TOKEN
-bot = commands.Bot(command_prefix='!')
-client = discord.Client()
+# Define intents
+intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent
+intents.members = True  # Enable member updates (if needed)
 
-wordles={}
+# Initialize bot with intents
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-forbiddenAsciiNums = [35,36,37,28,29,43,60,61,62,64,91,93,94,123,124,125,126]
+STABLE_DIFFUSION_API_URL = 'http://192.168.42.38:7860/sdapi/v1/txt2img'
+
+
+wordles = {}
+
+# Load wordles from file
 def setOfWordles():
-    fn=open("wordles.txt")
-    lines = fn.readlines()
-    for line in lines:
-        wordles[line.strip()] = True
+    with open("wordles.txt") as fn:
+        for line in fn:
+            wordles[line.strip().upper()] = True
 
 setOfWordles()
 
+# Utility function to check if a character is in the allowed ASCII range
+def is_normal(s):
+    forbidden_ascii_nums = [35, 36, 37, 28, 29, 43, 60, 61, 62, 64, 91, 93, 94, 123, 124, 125, 126]
+    return all(ord(a) not in forbidden_ascii_nums for a in s)
 
-@bot.command(name='quote', brief="Gives Physics Quote")
+# Quote command
+@bot.command(name='quote', brief="Gives a Physics Quote")
 async def quote(ctx):
-    def isNormal(s):
-        forbiddenAsciiNums = [35,36,37,28,29,43,60,61,62,64,91,93,94,123,124,125,126]
-        for a in s:
-            temp = ord(a)
-            try:
-                forbiddenAsciiNums.index(temp)
-                return False
-            except Exception:
-                continue
-        return True
-     
     await ctx.trigger_typing()
-    URL= "https://www.goodreads.com/quotes/tag/physics"
-    num = randint(1,25)
-    if num > 1:    
-        URL = URL + "?page=" + str(num)
-     
-    quotes = []
+    URL = "https://www.goodreads.com/quotes/tag/physics"
+    num = randint(1, 25)
+    if num > 1:
+        URL += f"?page={num}"
 
+    quotes = []
     page = requests.get(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
     res = soup.find_all(class_='quoteText')
-    
+
     for a in res:
-        if isNormal(a.text):
+        if is_normal(a.text):
             quotes.append(a.text)
-    await ctx.send(quotes[randint(0,len(quotes))])
 
+    if quotes:
+        await ctx.send(quotes[randint(0, len(quotes) - 1)])
+    else:
+        await ctx.send("No quotes found.")
 
-@bot.command(name='add', brief="Adds Two Numbers", description='adds TWO numbers')
+# Simple math operations
+@bot.command(name='add', brief="Adds Two Numbers", description='Adds TWO numbers')
 async def add(ctx, a: int, b: int):
-    out = a+b
-    await ctx.send(out)
+    await ctx.send(a + b)
 
-
-@bot.command(name='multiply',brief="Multiply Two Numbers", description='multiplies TWO numbers')
+@bot.command(name='multiply', brief="Multiply Two Numbers", description='Multiplies TWO numbers')
 async def multiply(ctx, a: int, b: int):
     await ctx.send(a * b)
 
-@bot.command(name='crypto', brief="Returns Price of Cryptocurrency", description='returns latest price of given cryptocurrency')
+# Stock and crypto price commands
+@bot.command(name='crypto', brief="Returns Price of Cryptocurrency", description='Returns latest price of given cryptocurrency')
 async def crypto(ctx, symbol: str):
     await ctx.trigger_typing()
     await ctx.send(stocks.getCrypto(symbol))
 
-@bot.command(name='stock', brief="Returns Price of Stock", description='returns latest price of given stock')
-async def stock(ctx, a: str):
+@bot.command(name='stock', brief="Returns Price of Stock", description='Returns latest price of given stock')
+async def stock(ctx, symbol: str):
     await ctx.trigger_typing()
-    await ctx.send(stocks.getLatestPrice(a))
+    await ctx.send(stocks.getLatestPrice(symbol))
 
-@bot.command(name='testScore', brief="Returns your test score", description='returns your test score')
+# Test score generator
+@bot.command(name='testScore', brief="Returns your test score", description='Returns your test score')
 async def testScore(ctx):
-    score = randint(0,100)
-
-    message = "You scored a " + str(score) + " - "
-
+    score = randint(0, 100)
+    messages = [resources.message60, resources.message70, resources.message80, resources.message90, resources.message100]
     if score < 60:
-        message = message + resources.message60
-
-    if score >= 60 and score < 70:
-        message = message + resources.message70
-    if score >= 70 and score < 80:
-
-        message = message + resources.message80
-
-    if score >= 80 and score < 90:
-        message = message + resources.message90
-
-    if score >= 90 and score < 100:
-        message = message + resources.message100
-
+        message = f"You scored a {score} - {messages[0]}"
+    elif score < 70:
+        message = f"You scored a {score} - {messages[1]}"
+    elif score < 80:
+        message = f"You scored a {score} - {messages[2]}"
+    elif score < 90:
+        message = f"You scored a {score} - {messages[3]}"
+    else:
+        message = f"You scored a {score} - {messages[4]}"
+    
     await ctx.send(message)
 
-@bot.command(name='greeting', description='gives a random greeting')
-async def greet(message):
+# Greet command
+@bot.command(name='greeting', description='Gives a random greeting')
+async def greet(ctx):
     greetings = resources.greetings
-    await message.send(greetings[randint(0, len(greetings) - 1)])
+    await ctx.send(greetings[randint(0, len(greetings) - 1)])
 
-
-@bot.command(name='cat', description='Sends a cat GIF')
-async def cat(ctx):
-    await ctx.send("https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif")
-
-
-
-@bot.command(name="bye", description="Says Goodbye")
-async def bye(message):
-    await message.send("yup see ya")
-
-@bot.command(name="define", definition="Define the word")
-async def define(ctx, word : str):
+# Define command to look up word definitions
+@bot.command(name="define", description="Define the word")
+async def define(ctx, word: str):
     await ctx.trigger_typing()
-    URL = "https://merriam-webster.com/dictionary/"
-    URL = URL + word
+    URL = f"https://merriam-webster.com/dictionary/{word}"
     regex = re.compile('.*sense .*')
     page = requests.get(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
-    res = soup.find_all("div", {"class" : regex})
+    res = soup.find_all("div", {"class": regex})
 
     out = word
     count = 1
 
-    def isNormal(s):
-        for a in s:
-            temp = ord(a)
-            try:
-                forbiddenAsciiNums.index(temp)
-            except Exception:
-                continue
-        return True
     for a in res:
-        if isNormal(a.text) and len(a.text) > 5:
+        if is_normal(a.text) and len(a.text) > 5:
             for b in a.text.split("\n"):
-                if len(b) > 5 and b[0] == ':' and count <= 5:
-                    out = out + "\n" + str(count) + b
-                    count = count + 1
+                if len(b) > 5 and b.startswith(':') and count <= 5:
+                    out += f"\n{count}{b}"
+                    count += 1
+
     if out == word:
-        await ctx.send("Sorry, but **" + word + "** couldn't be found in the dictionary.")
-       
+        await ctx.send(f"Sorry, but **{word}** couldn't be found in the dictionary.")
     else:
         await ctx.send(out)
-    
 
-
-@bot.command(name="iswordle", description="Checks if word is a wordleable word!")
-async def iswordle(message, word : str):
-    if word in wordles:
-        await message.send(word + " is a playable word!")
+# Wordle commands
+@bot.command(name="iswordle", description="Checks if a word is a wordleable word!")
+async def iswordle(ctx, word: str):
+    if word.upper() in wordles:
+        await ctx.send(f"{word} is a playable word!")
     else:
-        await message.send(word + " is NOT a playable word!")
+        await ctx.send(f"{word} is NOT a playable word!")
+#########################################################
 
+
+
+
+
+from collections import Counter
 
 @bot.command(name="wordle", description="Play Wordle!")
 async def wordle(ctx):
-    greenSquare = ":green_square:"
-    yellowSquare = ":yellow_square:"
-    blackSquare = ":white_square_button:"
+    green_square = ":green_square:"
+    yellow_square = ":yellow_square:"
+    black_square = ":white_square_button:"
+    
+    alphabet = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")  # Usable letters list
 
-    alphabet = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
-            "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y",
-            "Z"]
-    #This function generates the row for A users valid input
-    #takes in guess and answer, assumes guess is valid length and word
-    def toString(arr):
-        out = ""
-        for substr in arr:
-            out = out + substr
-        return out
+    def to_string(arr):
+        return " ".join(arr)
+
     def result(guess, answer):
-        nonlocal alphabet
-        #@alphabet = alphabet
-        out = "";
-        isGreen=[False,False,False,False, False]
-        isYellow=[False,False,False,False, False]
-        for i in range(len(guess)):
-           if guess[i] == answer[i]:
-            isGreen[i] = True
-            
-        for i in range(len(guess)):
-            for j in range(len(guess)):
-                if guess[i] == answer[j]:
-                    if isGreen[j] == False:
-                        isYellow[i] = True
-                        
+        out = ""
+        is_green = [False] * len(guess)
+        answer_count = Counter(answer)  # Count occurrences of each letter in the answer
 
+        # First pass: Identify green squares (correct letter and correct position)
         for i in range(len(guess)):
-            if isGreen[i]:
-                out = out + greenSquare
-            elif isYellow[i]:
-                out = out + yellowSquare
-            elif isYellow[i] == False and isGreen[i] == False:
-                index = ord(guess[i]) - 97
-                if len(alphabet[index]) == 1:
-                    alphabet[index] = "~~" + alphabet[index] + "~~"
-                
-                out = out + blackSquare
+            if guess[i] == answer[i]:
+                is_green[i] = True
+                answer_count[guess[i]] -= 1  # Reduce the count in answer for green matches
+
+        # Second pass: Identify yellow squares (correct letter but wrong position)
+        for i in range(len(guess)):
+            if not is_green[i]:
+                if guess[i] in answer_count and answer_count[guess[i]] > 0:
+                    # Mark yellow if the letter exists in the answer and hasn't been used up
+                    out += yellow_square
+                    answer_count[guess[i]] -= 1  # Reduce the count for yellow matches
+                else:
+                    out += black_square
+                    if guess[i] in alphabet:
+                        # Cross out the letter in the alphabet if it's completely wrong
+                        alphabet[alphabet.index(guess[i])] = f"~~{guess[i]}~~"
+            else:
+                out += green_square  # Green square for correct letters
+
         return out
-    #fix later to use hash table instead of search
-    def getWord():
-        return list(wordles)[randint(0,len(list(wordles)))]
-        #f = open('wordles.txt', 'r')
-        #lines = f.readlines()
-        #bound = randint(0,len(lines))
-        #for i in range(len(lines)):
-        #    if i == bound:
-        #        return lines[i].strip()
 
+    def get_word():
+        return random.choice(list(wordles.keys()))
 
-    #word = res.getWordleWord();
-    word = getWord()
-    #word = "drops"
-    print(word)
+    word = get_word().upper()
+    print(f"Word to guess: {word}")
+
     board = []
     won = False
-    exitGame = False
+    exit_game = False
     tries = 6
     out = ""
 
-    def getName(name):
-        index = 0
-        for i in range(len(name)):
-            if name[i] == "#":
-                return name[:i]
-        return name
-# local check function makes sure author and channel are the same
+    def get_name(name):
+        return name.split("#")[0]
+
     def check(msg):
         return msg.author == ctx.author and msg.channel == ctx.channel
-    
-    player = getName(str(ctx.author))
-    print("New Game: " + player + " -> " + word)
-    for i in range(0,tries):
-        if(i < tries-1):
-            await ctx.send( player + ', guess a 5 letter word, you have ' + str(tries-i) + " tries left!");
-        else:
-            await ctx.send(player + ", guess a 5 letter word, you have 1 try left!");
-        response = await bot.wait_for('message', check=check);
-        response_text = response.content
-        
-        if(response_text == "quit"):
-            break
-        
-        
-        while(len(response_text) != 5):
-            print("X " + player + " -> " + response_text + " -> " + str(len(response_text)) ) 
 
-            if(len(response_text) > 5):
-                await ctx.send(player + ", the word is GREATER than 5 letters, try again!")
-            else:
-                await ctx.send(player + ", the word is LESS than 5 letters, try again!")
-            response = await bot.wait_for('message', check=check)
-            response_text = response.content
-             
-            if(response_text == "quit"):
-                exitGame = True
-                break
-        while((response_text in wordles) == False):
-            print("X " + player + " -> " + response_text + " -> " + str(len(response_text)) ) 
+    player = get_name(str(ctx.author))
+    print(f"New Game: {player} -> {word}")
 
-            if(response_text == "quit"):
-                exitGame = True
-                break
-            await ctx.send(player + ", " + response_text + " is an invalid word, try again!")
-            response = await bot.wait_for('message', check=check)
-            response_text = response.content
-        if(exitGame):
+    for i in range(tries):
+        await ctx.send(f'{player}, guess a 5-letter word. You have {tries - i} tries left!')
+
+        response = await bot.wait_for('message', check=check)
+        response_text = response.content.upper()
+
+        if response_text == "QUIT":
+            exit_game = True
+            await ctx.send(f"{player} has quit the game.")
             break
-        row = result(response_text, word.lower())    
+
+        # Ignore messages longer than 8 characters
+      
+        while (len(response_text) != 5 )  or not response_text.isalpha():
+            if(len(response_text) < 8):
+                await ctx.send(f'{player}, the word must be exactly 5 letters. Try again!')
+            response = await bot.wait_for('message', check=check)
+            response_text = response.content.upper()
+
+            if response_text == "QUIT":
+                exit_game = True
+                await ctx.send(f"{player} has quit the game.")
+                break
+
+        if exit_game:
+            break
+
+        # Validate only 5-character words from the word list
+        while len(response_text) == 5 and response_text not in wordles:
+            await ctx.send(f'{player}, {response_text} is an invalid word. Try again!')
+            response = await bot.wait_for('message', check=check)
+            response_text = response.content.upper()
+
+            if response_text == "QUIT":
+                exit_game = True
+                await ctx.send(f"{player} has quit the game.")
+                break
+
+        if exit_game:
+            break
+
+        row = result(response_text, word)
         board.append(row)
-        
-        if(response_text == word):
+
+        if response_text == word:
             won = True
-            for m in board:
-                #await ctx.send(m)
-                out = out + m + "\n"
-            if(i == 1):
-                #await ctx.send("You took 1 try to guess " + word)
-                out = out + player + " took 1 try to guess " + word + "\n"
-            else:    
-                #wait ctx.send("You took " + str(i+1) + " tries to guess " + word)
-                out = out + player + " took " + str(i+1) + " tries to guess " + "**" + word + "**" + "\n"
+            out += "\n".join(board) + "\n"
+            out += f"{player} guessed **{word}** in {i + 1} {'tries' if i != 0 else 'try'}!\n"
             await ctx.send(out)
             break
-        elif i != tries-1:
-            await ctx.send("[" + player + "]\n" + "**Usable Letters**: " + toString(alphabet) + "\n**Guess**: " + response_text )
+        else:
+            usable_letters = to_string(alphabet)  # This will now include crossed-out letters
+            await ctx.send(f"[{player}]\n**Usable Letters**: {usable_letters}\n**Guess**: {response_text}")
             await ctx.send(row)
-            print(str(i+1) + " " + player + " -> " + response_text)
 
-    
-    if won == False:
-        for i in range(len(board)):
-            out = out + board[i] + "\n"
-            #await ctx.send(board[i])
-        out = out + player + "'s word was " + "**" + word + "**"
-        #await ctx.send("The word was " + word)
+    if not won and not exit_game:
+        out += "\n".join(board) + "\n"
+        out += f"{player}, the word was **{word}**."
         await ctx.send(out)
-#Experimental / no use at the moment below
-"""
-@bot.command(pass_context=True, brief="Makes the bot join your channel", aliases=['j', 'jo'])
-async def join(ctx):
-    channel = ctx.message.author.voice.channel
-    if not channel:
-        await ctx.send("You are not connected to a voice channel")
-        return
-    voice = get(bot.voice_clients, guild=ctx.guild)
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-    await voice.disconnect()
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-    await ctx.send(f"Joined {channel}")
-
-@bot.command(pass_context=True, brief="Makes the bot leave your channel", aliases=['l', 'le', 'lea'])
-async def leave(ctx):
-    channel = ctx.message.author.voice.channel
-    voice = get(bot.voice_clients, guild=ctx.guild)
-    if voice and voice.is_connected():
-        await voice.disconnect()
-        await ctx.send(f"Left {channel}")
-    else:
-        await ctx.send("Don't think I am in a voice channel")
 
 
-@client.event
+
+
+
+
+
+
+#########################################################
+# Conversation handling and response from Ollama
+context_timeout = 1200  # 20 minutes in seconds
+active_conversations = load_conversations()
+
+@bot.event
 async def on_message(message):
-    if message.content.startswith('rom'):
-        channel=message.channel
-        await channel.send()
+    if message.author == bot.user:
+        return
+
+    guild_id = message.guild.id if message.guild else "DM"  # Use "DM" for direct messages
+    channel_id = message.channel.id
+
+    if bot.user in message.mentions or (message.reference and message.reference.resolved and message.reference.resolved.author == bot.user):
+        user_input = message.content.replace(f"<@{bot.user.id}>", "").strip()
+
+        # Retrieve previous context if available
+        previous_context = get_conversation(active_conversations, guild_id, channel_id, context_timeout)
+        prompt = f"{previous_context}\nUser: {user_input}" if previous_context else f"User: {user_input}"
+
+        url = f"http://192.168.42.38:11434/api/generate"
+
+        payload = {
+            "model": "dolphin-llama3",
+            "prompt": prompt
+        }
+
+        try:
+            async with message.channel.typing():
+                response = requests.post(url, json=payload, stream=True)
+                response.raise_for_status()
+
+                bot_response = ""
+                for line in response.iter_lines():
+                    if line:
+                        json_data = line.decode('utf-8')
+                        result = json.loads(json_data)
+
+                        if "response" in result:
+                            bot_response += result["response"]
+
+                        if result.get("done", False):
+                            break
+
+                if bot_response:
+                    update_conversation(active_conversations, guild_id, channel_id, user_input, bot_response)
+
+                    if len(bot_response) > 2000:
+                        chunks = [bot_response[i:i + 2000] for i in range(0, len(bot_response), 2000)]
+                        for chunk in chunks:
+                            await message.channel.send(chunk)
+                    else:
+                        await message.channel.send(bot_response)
+                else:
+                    await message.channel.send("No response received from Ollama.")
+        except requests.exceptions.RequestException as e:
+            await message.channel.send(f"Error: {e}")
+
+    await bot.process_commands(message)
+
+@bot.command(name='endconvo', help="Ends the current conversation and clears the context.")
+async def end_conversation(ctx):
+    guild_id = ctx.guild.id if ctx.guild else None
+    channel_id = ctx.channel.id
+    key = (guild_id, channel_id)
+
+    if key in active_conversations:
+        del active_conversations[key]
+        save_conversations(active_conversations)  # Save the updated conversations to file
+        await ctx.send(f"Conversation context cleared for this channel.")
+    else:
+        await ctx.send(f"No active conversation found for this channel.")
 
 
 
+@bot.command()
+async def generate(ctx, *, prompt: str):
+    """
+    Takes a prompt from the user, sends it to the Stable Diffusion server, and returns the generated image.
+    """
+    await ctx.send(f'Generating image for: "{prompt}"...')
 
+    # Prepare the request payload for Stable Diffusion
+    payload = {
+        "prompt": prompt,
+        "steps": 20  # Number of inference steps, can be adjusted
+    }
 
-@bot.command(name='guess', brief = "Guesses number between 1 and 100")
-async def guess(ctx, *argv):
-    global guessGameInProgress
-    global hiNum
-    global loNum
-    global guessNum
-    global guessCount
-    if guessGameInProgress ==  False:
-        await ctx.send("Think of a number, Rom will try to guess it!")
-        await ctx.send("If it's correct, send '!guess right'")
-        await ctx.send("If it's incorrect, send '!guess wrong'")
-    guessGameInProgress = True
+    try:
+        # Send POST request to Stable Diffusion API
+        response = requests.post(STABLE_DIFFUSION_API_URL, json=payload)
+        response.raise_for_status()
 
+        # Get the generated image data (assuming the API returns it as base64)
+        result = response.json()
+        image_base64 = result['images'][0]  # Extract the first image
 
-@client.event
-async def on_ready():
-    print(f'{client.user.name} has connected to Discord!')
+        # Decode the base64 string into image bytes
+        image_data = io.BytesIO(base64.b64decode(image_base64))
 
+        # Create a Discord file object from the image bytes
+        image_file = discord.File(fp=image_data, filename="generated_image.png")
 
+        # Send the image to the Discord channel
+        await ctx.send(file=image_file)
 
-@client.event
-async def on_member_join(member):
-    greetings = [f'Alright, {member.name} take your seat',
-                 f'Welcome back {member.name}, you are late',
-                 f'{member.name}, make sure you are NOT being part of the problem',
-                 f'{member.name} stop being such a boring person, get off your phone and get a life']
-    await member.send(greetings[randint(0, len(greetings))])
+    except Exception as e:
+        await ctx.send(f'An error occurred: {str(e)}')
 
-
-
-"""
-#end of experimental / No Use
 
 
 

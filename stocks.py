@@ -1,10 +1,6 @@
 from alpha_vantage.timeseries import TimeSeries
-#pip install alpha_vantage
 import resources
-#import resourcesTemplate as resources
-#see readme for how to use
 from pprint import pprint
-
 
 ts = TimeSeries(key=resources.alphaVantageKey, output_format='pandas')
 
