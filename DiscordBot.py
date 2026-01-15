@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 import requests
@@ -181,8 +182,8 @@ async def wordle(ctx):
                     answer_count[guess[i]] -= 1  # Reduce the count for yellow matches
                 else:
                     out += black_square
-                    if guess[i] in alphabet:
-                        # Cross out the letter in the alphabet if it's completely wrong
+                    # Only cross out if letter is truly not in the answer at all
+                    if guess[i] not in answer and guess[i] in alphabet:
                         alphabet[alphabet.index(guess[i])] = f"~~{guess[i]}~~"
             else:
                 out += green_square  # Green square for correct letters
@@ -210,44 +211,36 @@ async def wordle(ctx):
     player = get_name(str(ctx.author))
     print(f"New Game: {player} -> {word}")
 
+    TIMEOUT_SECONDS = 120  # 2 minutes per guess
+
     for i in range(tries):
         await ctx.send(f'{player}, guess a 5-letter word. You have {tries - i} tries left!')
 
-        response = await bot.wait_for('message', check=check)
-        response_text = response.content.upper()
+        # Get and validate input in a single loop
+        while True:
+            try:
+                response = await bot.wait_for('message', check=check, timeout=TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                await ctx.send(f"{player}, game timed out due to inactivity. The word was **{word}**.")
+                exit_game = True
+                break
 
-        if response_text == "QUIT":
-            exit_game = True
-            await ctx.send(f"{player} has quit the game.")
-            break
+            response_text = response.content.upper()
 
-        # Validate input is exactly 5 alphabetic characters
-        while (len(response_text) != 5) or not response_text.isalpha():
+            if response_text == "QUIT":
+                exit_game = True
+                await ctx.send(f"{player} has quit the game.")
+                break
+
+            # Validate input
             if not response_text.isalpha():
                 await ctx.send(f'{player}, please use only letters. Try again!')
-            else:
+            elif len(response_text) != 5:
                 await ctx.send(f'{player}, the word must be exactly 5 letters. Try again!')
-            response = await bot.wait_for('message', check=check)
-            response_text = response.content.upper()
-
-            if response_text == "QUIT":
-                exit_game = True
-                await ctx.send(f"{player} has quit the game.")
-                break
-
-        if exit_game:
-            break
-
-        # Validate only 5-character words from the word list
-        while len(response_text) == 5 and response_text not in wordles:
-            await ctx.send(f'{player}, {response_text} is an invalid word. Try again!')
-            response = await bot.wait_for('message', check=check)
-            response_text = response.content.upper()
-
-            if response_text == "QUIT":
-                exit_game = True
-                await ctx.send(f"{player} has quit the game.")
-                break
+            elif response_text not in wordles:
+                await ctx.send(f'{player}, {response_text} is not a valid word. Try again!')
+            else:
+                break  # Valid input
 
         if exit_game:
             break
