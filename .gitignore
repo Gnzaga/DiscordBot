@@ -1,2 +1,32 @@
-.DiscordBot.py.swp
+# Sensitive configuration files
 resources.py
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+venv/
+ENV/
+env/
+.venv/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Data files
+conversations.json
+
+# OS files
+.DS_Store
+Thumbs.db

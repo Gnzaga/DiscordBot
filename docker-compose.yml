@@ -5,6 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-dolphin-llama3}
+      - STABLE_DIFFUSION_URL=${STABLE_DIFFUSION_URL:-http://localhost:7860}
+      - ALPHA_VANTAGE_KEY=${ALPHA_VANTAGE_KEY}
     volumes:
-      - .:/app
+      - ./conversations.json:/app/conversations.json
     restart: unless-stopped

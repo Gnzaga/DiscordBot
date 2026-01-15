@@ -2,37 +2,45 @@ import discord
 from discord.ext import commands
 import requests
 from bs4 import BeautifulSoup
-from random import randint
 import random
 import re
 import json
+import os
+import io
+import base64
+from collections import Counter
 from conversation_manager import load_conversations, save_conversations, update_conversation, get_conversation
 import resources
 import stocks
-from collections import defaultdict  
-import io
-import base64
 
+# Configuration from environment variables with defaults
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN', resources.TOKEN)
+OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'dolphin-llama3')
+STABLE_DIFFUSION_URL = os.getenv('STABLE_DIFFUSION_URL', 'http://localhost:7860')
+STABLE_DIFFUSION_API_URL = f'{STABLE_DIFFUSION_URL}/sdapi/v1/txt2img'
 
-TOKEN = resources.TOKEN
 # Define intents
 intents = discord.Intents.default()
-intents.message_content = True  # Enable message content intent
-intents.members = True  # Enable member updates (if needed)
+intents.message_content = True
+intents.members = True
 
 # Initialize bot with intents
 bot = commands.Bot(command_prefix='!', intents=intents)
-
-STABLE_DIFFUSION_API_URL = 'http://192.168.42.38:7860/sdapi/v1/txt2img'
 
 
 wordles = {}
 
 # Load wordles from file
 def setOfWordles():
-    with open("wordles.txt") as fn:
-        for line in fn:
-            wordles[line.strip().upper()] = True
+    wordles_path = os.path.join(os.path.dirname(__file__), "wordles.txt")
+    try:
+        with open(wordles_path) as fn:
+            for line in fn:
+                wordles[line.strip().upper()] = True
+        print(f"Loaded {len(wordles)} words for Wordle")
+    except FileNotFoundError:
+        print("Warning: wordles.txt not found. Wordle game will not work.")
 
 setOfWordles()
 
@@ -46,7 +54,7 @@ def is_normal(s):
 async def quote(ctx):
     await ctx.trigger_typing()
     URL = "https://www.goodreads.com/quotes/tag/physics"
-    num = randint(1, 25)
+    num = random.randint(1, 25)
     if num > 1:
         URL += f"?page={num}"
 
@@ -60,7 +68,7 @@ async def quote(ctx):
             quotes.append(a.text)
 
     if quotes:
-        await ctx.send(quotes[randint(0, len(quotes) - 1)])
+        await ctx.send(quotes[random.randint(0, len(quotes) - 1)])
     else:
         await ctx.send("No quotes found.")
 
@@ -87,7 +95,7 @@ async def stock(ctx, symbol: str):
 # Test score generator
 @bot.command(name='testScore', brief="Returns your test score", description='Returns your test score')
 async def testScore(ctx):
-    score = randint(0, 100)
+    score = random.randint(0, 100)
     messages = [resources.message60, resources.message70, resources.message80, resources.message90, resources.message100]
     if score < 60:
         message = f"You scored a {score} - {messages[0]}"
@@ -106,7 +114,7 @@ async def testScore(ctx):
 @bot.command(name='greeting', description='Gives a random greeting')
 async def greet(ctx):
     greetings = resources.greetings
-    await ctx.send(greetings[randint(0, len(greetings) - 1)])
+    await ctx.send(greetings[random.randint(0, len(greetings) - 1)])
 
 # Define command to look up word definitions
 @bot.command(name="define", description="Define the word")
@@ -141,12 +149,6 @@ async def iswordle(ctx, word: str):
     else:
         await ctx.send(f"{word} is NOT a playable word!")
 #########################################################
-
-
-
-
-
-from collections import Counter
 
 @bot.command(name="wordle", description="Play Wordle!")
 async def wordle(ctx):
@@ -219,10 +221,11 @@ async def wordle(ctx):
             await ctx.send(f"{player} has quit the game.")
             break
 
-        # Ignore messages longer than 8 characters
-      
-        while (len(response_text) != 5 )  or not response_text.isalpha():
-            if(len(response_text) < 8):
+        # Validate input is exactly 5 alphabetic characters
+        while (len(response_text) != 5) or not response_text.isalpha():
+            if not response_text.isalpha():
+                await ctx.send(f'{player}, please use only letters. Try again!')
+            else:
                 await ctx.send(f'{player}, the word must be exactly 5 letters. Try again!')
             response = await bot.wait_for('message', check=check)
             response_text = response.content.upper()
@@ -295,10 +298,10 @@ async def on_message(message):
         previous_context = get_conversation(active_conversations, guild_id, channel_id, context_timeout)
         prompt = f"{previous_context}\nUser: {user_input}" if previous_context else f"User: {user_input}"
 
-        url = f"http://192.168.42.38:11434/api/generate"
+        url = f"{OLLAMA_URL}/api/generate"
 
         payload = {
-            "model": "dolphin-llama3",
+            "model": OLLAMA_MODEL,
             "prompt": prompt
         }
 
@@ -337,16 +340,16 @@ async def on_message(message):
 
 @bot.command(name='endconvo', help="Ends the current conversation and clears the context.")
 async def end_conversation(ctx):
-    guild_id = ctx.guild.id if ctx.guild else None
+    guild_id = ctx.guild.id if ctx.guild else "DM"
     channel_id = ctx.channel.id
-    key = (guild_id, channel_id)
+    key = f"{guild_id}-{channel_id}"
 
     if key in active_conversations:
         del active_conversations[key]
-        save_conversations(active_conversations)  # Save the updated conversations to file
-        await ctx.send(f"Conversation context cleared for this channel.")
+        save_conversations(active_conversations)
+        await ctx.send("Conversation context cleared for this channel.")
     else:
-        await ctx.send(f"No active conversation found for this channel.")
+        await ctx.send("No active conversation found for this channel.")
 
 
 
@@ -385,6 +388,4 @@ async def generate(ctx, *, prompt: str):
         await ctx.send(f'An error occurred: {str(e)}')
 
 
-
-
-bot.run(TOKEN)
+bot.run(DISCORD_TOKEN)

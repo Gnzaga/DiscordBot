@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discord-bot-config
+  namespace: discord-bot
+data:
+  # Ollama LLM configuration
+  OLLAMA_URL: "http://ollama-service:11434"
+  OLLAMA_MODEL: "dolphin-llama3"
+  # Stable Diffusion configuration
+  STABLE_DIFFUSION_URL: "http://stable-diffusion-service:7860"
