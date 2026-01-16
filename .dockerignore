@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation
+*.md
+ReadMe.txt
+
+# Kubernetes manifests (not needed in image)
+k8s/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Sensitive files
+resources.py
+.env
+*.env
+
+# Data files (will be mounted)
+conversations.json

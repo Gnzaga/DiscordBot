@@ -1,13 +1,13 @@
+import os
 from alpha_vantage.timeseries import TimeSeries
-import resources
-from pprint import pprint
-
-ts = TimeSeries(key=resources.alphaVantageKey, output_format='pandas')
-
 from alpha_vantage.cryptocurrencies import CryptoCurrencies
+import resources
 
+# Get API key from environment variable or fall back to resources file
+ALPHA_VANTAGE_KEY = os.getenv('ALPHA_VANTAGE_KEY', resources.alphaVantageKey)
 
-crypto = CryptoCurrencies(key=resources.alphaVantageKey, output_format='pandas')
+ts = TimeSeries(key=ALPHA_VANTAGE_KEY, output_format='pandas')
+crypto = CryptoCurrencies(key=ALPHA_VANTAGE_KEY, output_format='pandas')
 #data['4. close']
 
 def getLatestPrice(name):
